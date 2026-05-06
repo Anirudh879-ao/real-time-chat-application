@@ -14,7 +14,7 @@ export const useChatStore = create((set, get) => ({
     set({ isUsersLoading: true });
 
     try {
-      const res = await axiosInstance.get("/message/user");
+      const res = await axiosInstance.get("/messages/users");
       set({ users: res.data });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to load users");
@@ -27,7 +27,7 @@ export const useChatStore = create((set, get) => ({
     set({ isMessagesLoading: true });
 
     try {
-      const res = await axiosInstance.get(`/message/${userId}`);
+      const res = await axiosInstance.get(`/messages/${userId}`);
       set({ messages: res.data });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to load messages");
@@ -43,7 +43,7 @@ export const useChatStore = create((set, get) => ({
 
     try {
       const res = await axiosInstance.post(
-        `/message/send/${selectedUser._id}`,
+        `/messages/send/${selectedUser._id}`,
         messageData
       );
 
@@ -57,19 +57,29 @@ export const useChatStore = create((set, get) => ({
     const { selectedUser } = get();
 
     if (!selectedUser) return;
-    const socket=useAuthStore.getState().socket;
 
-    Socket.on("newMessage",(newMessage)=> {
-      const isMessageFromSelectedUser=newMessage.senderId === selectedUser._id
-      if(!isMessageFromSelectedUser) return;
-      set({ messages: [...messages, newMessage] });
+    const socket = useAuthStore.getState().socket;
 
-    })
+    if (!socket) return;
+
+    socket.off("newMessage");
+
+    socket.on("newMessage", (newMessage) => {
+      const isMessageFromSelectedUser =
+        newMessage.senderId === selectedUser._id;
+
+      if (!isMessageFromSelectedUser) return;
+
+      set({ messages: [...get().messages, newMessage] });
+    });
   },
 
   unsubscribeFromMessages: () => {
-    const socket=useAuthStore.getState().socket;
-    socket.off("newMessage");
+    const socket = useAuthStore.getState().socket;
+
+    if (socket) {
+      socket.off("newMessage");
+    }
   },
 
   setSelectedUser: (selectedUser) => {
